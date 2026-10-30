@@ -1,0 +1,1 @@
+ALTER TABLE rooms ADD COLUMN category TEXT NOT NULL DEFAULT 'Mystery';

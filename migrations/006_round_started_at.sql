@@ -1,0 +1,1 @@
+ALTER TABLE rooms ADD COLUMN round_started_at TIMESTAMPTZ;

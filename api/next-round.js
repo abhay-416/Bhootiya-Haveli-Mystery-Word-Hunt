@@ -1,0 +1,7 @@
+import { db, events } from 'hatchable';
+export const access='public';
+export default async function(req,res){
+ const code=String(req.body?.code||'').toUpperCase(),token=String(req.body?.token||''); const q=await db.query('SELECT r.id,r.status,r.ghost_player_id,p.id AS pid FROM rooms r JOIN players p ON p.room_id=r.id WHERE r.code=$1 AND p.token=$2',[code,token]); if(!q.rows.length) return res.status(403).json({error:'Invalid room session'}); const x=q.rows[0]; if(x.status!=='finished') return res.status(409).json({error:'Finish the round first'});
+ const ps=await db.query('SELECT id,joined_at FROM players WHERE room_id=$1 ORDER BY joined_at',[x.id]); if(ps.rows.length<2) return res.status(409).json({error:'Need at least two players'}); const ids=ps.rows.map(p=>p.id); let next=ids[(ids.indexOf(x.pid)+1)%ids.length]; const win=await db.query('SELECT winner_player_id FROM rooms WHERE id=$1',[x.id]); if(win.rows[0].winner_player_id) next=win.rows[0].winner_player_id;
+ await db.query("UPDATE players SET role=CASE WHEN id=$1 THEN 'ghost' ELSE 'explorer' END WHERE room_id=$2",[next,x.id]); await db.query("UPDATE rooms SET status='waiting',ghost_player_id=$1,secret_word=NULL,round_number=round_number+1,winner_player_id=NULL,round_ends_at=NULL,version=version+1,updated_at=now() WHERE id=$2",[next,x.id]); await events.publish('room:'+code,'changed',{version:Date.now()}); res.json({ok:true});
+}
